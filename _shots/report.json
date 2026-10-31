@@ -1,0 +1,136 @@
+{
+  "src": "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\廖子杰作品集.html",
+  "url": "file:///C:/Users/lenovo/Desktop/%E6%95%B0%E5%AD%97%E7%BC%96%E7%A8%8B%E6%8A%80%E6%9C%AF%E7%9A%84%E5%8E%9F%E7%90%86%E4%B8%8E%E5%BA%94%E7%94%A8/%E5%BB%96%E5%AD%90%E6%9D%B0%E4%BD%9C%E5%93%81%E9%9B%86.html",
+  "outdir": "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\_shots",
+  "include": [
+    "lint",
+    "screenshots",
+    "structure"
+  ],
+  "shots": {
+    "desktop": {
+      "screenshot": "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\_shots\\廖子杰作品集_desktop.jpg",
+      "screenshotBytes": 124911,
+      "truncated": false,
+      "structure": {
+        "title": "廖子杰 · 个人作品集",
+        "firstH1": "廖子杰",
+        "viewport": {
+          "w": 1410,
+          "h": 758
+        },
+        "fullpage": {
+          "w": 1410,
+          "h": 3597
+        },
+        "counts": {
+          "section": 5,
+          "h1": 1,
+          "h2": 4,
+          "img": 1,
+          "canvas": 1,
+          "svg": 7,
+          "links": 6,
+          "buttons": 23
+        }
+      },
+      "consoleErrors": [],
+      "consoleWarnings": [],
+      "horizontalOverflow": [],
+      "resourceErrors": [],
+      "reportSource": "cdp"
+    },
+    "mobile": {
+      "slices": [
+        "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\_shots\\廖子杰作品集_mobile_p1of2.jpg",
+        "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\_shots\\廖子杰作品集_mobile_p2of2.jpg"
+      ],
+      "sliceHint": "按顺序 Read slices 里的各分片。",
+      "truncated": false,
+      "structure": {
+        "title": "廖子杰 · 个人作品集",
+        "firstH1": "廖子杰",
+        "viewport": {
+          "w": 492,
+          "h": 702
+        },
+        "fullpage": {
+          "w": 492,
+          "h": 4485
+        },
+        "counts": {
+          "section": 5,
+          "h1": 1,
+          "h2": 4,
+          "img": 1,
+          "canvas": 1,
+          "svg": 7,
+          "links": 6,
+          "buttons": 23
+        }
+      },
+      "consoleErrors": [],
+      "consoleWarnings": [],
+      "horizontalOverflow": [],
+      "resourceErrors": [],
+      "reportSource": "cdp"
+    }
+  },
+  "engine": "chrome_cli",
+  "chromiumExec": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+  "engineDegraded": true,
+  "engineDegradedReason": "playwright 未装",
+  "elapsedSec": 36.31,
+  "schemaVersion": 2,
+  "status": "pass",
+  "engineInfo": {
+    "name": "chrome_cli",
+    "degraded": true,
+    "degradedReasons": [
+      "playwright 未装"
+    ]
+  },
+  "input": {
+    "original": "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\廖子杰作品集.html",
+    "resolvedPath": "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\廖子杰作品集.html",
+    "baseUrl": "file:///C:/Users/lenovo/Desktop/%E6%95%B0%E5%AD%97%E7%BC%96%E7%A8%8B%E6%8A%80%E6%9C%AF%E7%9A%84%E5%8E%9F%E7%90%86%E4%B8%8E%E5%BA%94%E7%94%A8/%E5%BB%96%E5%AD%90%E6%9D%B0%E4%BD%9C%E5%93%81%E9%9B%86.html",
+    "protocol": "file",
+    "cwd": "C:\\Users\\lenovo\\Doubao\\chats\\2026-10-27\\new-chat",
+    "mediaMode": {
+      "reducedMotion": false
+    }
+  },
+  "artifacts": {
+    "screenshots": [
+      {
+        "viewport": "desktop",
+        "path": "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\_shots\\廖子杰作品集_desktop.jpg",
+        "size": 124911,
+        "visualCoverage": {
+          "complete": true,
+          "reason": null
+        }
+      },
+      {
+        "viewport": "mobile",
+        "tiles": [
+          "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\_shots\\廖子杰作品集_mobile_p1of2.jpg",
+          "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\_shots\\廖子杰作品集_mobile_p2of2.jpg"
+        ],
+        "visualCoverage": {
+          "complete": true,
+          "reason": null
+        }
+      }
+    ]
+  },
+  "summary": {
+    "blocker": 0,
+    "error": 0,
+    "warning": 0,
+    "info": 0
+  },
+  "findings": [],
+  "prioritizedActions": [],
+  "reportPath": "C:\\Users\\lenovo\\Desktop\\数字编程技术的原理与应用\\_shots\\report.json"
+}

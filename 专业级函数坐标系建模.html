@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>专业级数学坐标系绘图工具 - 动态空间版</title>
+    <script src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <link rel="stylesheet" href="https://jsxgraph.org/distrib/jsxgraph.css" />
+    <script src="https://jsxgraph.org/distrib/jsxgraphcore.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #000000;
+            --bg-color: #fcfcfc;
+            --border-color: #e0e0e0;
+            --tab-bg: #f0f0f0;
+            --tab-active: #ffffff;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .app-container {
+            display: flex;
+            gap: 30px;
+            width: 100%;
+            max-width: 1350px;
+            align-items: flex-start;
+        }
+        
+        .sidebar {
+            width: 480px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .mode-toggle {
+            display: flex;
+            background: var(--tab-bg);
+            border-radius: 8px;
+            padding: 4px;
+        }
+        .mode-toggle button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            color: #666;
+        }
+        .mode-toggle button.active {
+            background: var(--tab-active);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            color: var(--primary);
+        }
+
+        .space-tabs-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .space-tabs {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            flex: 1;
+            scrollbar-width: thin;
+        }
+        .space-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #f8f8f8;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            color: #666;
+        }
+        .space-tab:hover { background: #f0f0f0; }
+        .space-tab.active {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+            font-weight: 600;
+        }
+        .space-tab .close-space {
+            font-size: 16px;
+            line-height: 1;
+            color: inherit;
+            opacity: 0.6;
+            cursor: pointer;
+        }
+        .space-tab .close-space:hover { opacity: 1; }
+        .space-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .space-actions button {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .space-actions button:hover {
+            background: #f0f0f0;
+            border-color: #999;
+        }
+
+        .function-list {
+            max-height: 420px;
+            overflow-y: auto;
+            padding-right: 5px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .function-list.active-list {
+            display: flex;
+        }
+        .function-item {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #fafafa;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            position: relative;
+            transition: box-shadow 0.2s;
+        }
+        .function-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }
+        .function-header {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .type-select {
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 13px;
+            outline: none;
+            background: #fff;
+        }
+        math-field {
+            flex: 1;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        .color-module {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+        .color-module label {
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        input[type="color"] {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 1px solid #ddd; border-radius: 6px; }
+        input[type="range"].opacity-slider { width: 80px; accent-color: #000; }
+        .opacity-value {
+            font-size: 12px;
+            color: #000;
+            width: 30px;
+            text-align: right;
+            font-weight: 600;
+        }
+        
+        .domain-input {
+            flex: 1;
+            padding: 6px 10px;
+            font-size: 13px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            outline: none;
+        }
+        .delete-btn {
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            font-weight: bold;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .delete-btn:hover { background: #d9363e; }
+        .add-btn {
+            width: 100%;
+            padding: 12px;
+            background: #000;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .add-btn:hover { background: #333; }
+        
+        .action-row {
+            display: flex;
+            gap: 10px;
+        }
+        .reset-btn {
+            flex: 1;
+            padding: 12px;
+            background: #fff;
+            color: #000;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .reset-btn:hover { background: #f0f0f0; }
+
+        #status-message {
+            color: #d32f2f;
+            font-size: 12px;
+            min-height: 18px;
+            margin-top: 5px;
+        }
+
+        .empty-space-msg {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            padding: 40px 20px;
+            border: 2px dashed #eee;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .precision-control {
+            display: none;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        .precision-control label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        input[type="range"] { width: 100%; accent-color: #000; }
+        
+        .canvas-tip {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .canvas-container {
+            flex: 1;
+            height: 800px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+        #jxgbox, #graph3d { width: 100%; height: 100%; }
+        #graph3d { display: none; }
+        
+        .loader {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="sidebar">
+        <div class="mode-toggle">
+            <button id="btn2D" class="active" onclick="switchMode('2D')">2D 模式</button>
+            <button id="btn3D" onclick="switchMode('3D')">3D 模式</button>
+        </div>
+
+        <div class="space-tabs-wrapper">
+            <div class="space-tabs" id="spaceTabs"></div>
+            <div class="space-actions">
+                <button onclick="createNewSpace()" title="新建空间">+</button>
+                <button onclick="deleteCurrentSpace()" title="删除当前空间">×</button>
+            </div>
+        </div>
+
+        <div class="function-list active-list" id="functionList2D"></div>
+        <div class="function-list" id="functionList3D"></div>
+        
+        <div class="empty-space-msg" id="emptyMsg" style="display: none;">
+            当前空间为空<br>点击下方按钮添加函数
+        </div>
+        
+        <div class="action-row">
+            <button class="add-btn" onclick="addFunctionItem()">+ 添加函数</button>
+            <button class="reset-btn" onclick="resetView()">重置视图</button>
+        </div>
+        <div id="status-message"></div>
+
+        <div class="precision-control" id="precisionControl">
+            <label>
+                <span>3D 渲染精度（网格分辨率）</span>
+                <span id="resValue">40</span>
+            </label>
+            <input type="range" id="resolution" min="20" max="100" value="40" step="10" oninput="document.getElementById('resValue').innerText = this.value; triggerDraw();">
+            
+            <label style="margin-top: 12px;">
+                <span>3D 空间范围（自适应大小）</span>
+                <span id="rangeValue">10</span>
+            </label>
+            <input type="range" id="spaceRange" min="5" max="200" value="10" step="5" oninput="document.getElementById('rangeValue').innerText = this.value; triggerDraw();">
+            <p style="font-size: 11px; color: #999; margin-top: 5px;">提示：滚轮可缩放 3D 视角，双击画布恢复</p>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <div id="jxgbox"></div>
+        <div id="graph3d"></div>
+        <div class="loader" id="loader">
+            <div class="spinner"></div>
+            <div id="loaderText">正在后台计算...</div>
+        </div>
+        <div class="canvas-tip" id="canvasTip">🖱️ 滚动缩放 / 拖拽旋转</div>
+    </div>
+</div>
+
+<script>
+    let currentMode = '2D';
+    let board = null;
+    let debounceTimer = null;
+    let worker = null;
+
+    const workspaces = {
+        '2D': [ { id: '2d-space-1', name: '2D 空间 1', boundingbox: [-8, 24, 8, 8], functions: [] } ],
+        '3D': [ { id: '3d-space-1', name: '3D 空间 1', functions: [] } ]
+    };
+
+    const activeSpaceId = { '2D': '2d-space-1', '3D': '3d-space-1' };
+
+    function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+    function escapeHtml(unsafe) {
+        if (typeof unsafe !== 'string') return '';
+        return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function getCurrentSpace() {
+        const spaces = workspaces[currentMode];
+        return spaces.find(s => s.id === activeSpaceId[currentMode]) || spaces[0];
+    }
+
+    function initWorker() {
+        const workerCode = `
+            importScripts('https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js');
+            self.onmessage = function(e) {
+                const { expressions, size, range } = e.data;
+                let result = { x: [], y: [], z: [], datasets: [] };
+                const implicitExprs = expressions.filter(ex => ex.type === 'implicit');
+                const paramExprs = expressions.filter(ex => ex.type === 'parametric');
+
+                if (implicitExprs.length > 0) {
+                    const step = (range * 2) / size;
+                    let gx = [], gy = [], gz = [];
+                    for (let i = 0; i <= size; i++) {
+                        let xi = -range + i * step;
+                        for (let j = 0; j <= size; j++) {
+                            let yi = -range + j * step;
+                            for (let k = 0; k <= size; k++) {
+                                let zi = -range + k * step;
+                                gx.push(xi); gy.push(yi); gz.push(zi);
+                            }
+                        }
+                    }
+                    implicitExprs.forEach(ex => {
+                        let vals = [];
+                        const mainFunc = math.compile(ex.equationStr);
+                        let domainFuncs = [];
+                        if (ex.domainStr) domainFuncs = ex.domainStr.split('&&').map(d => math.compile(d.trim()));
+                        for (let p = 0; p < gx.length; p++) {
+                            try {
+                                let valid = true;
+                                if (domainFuncs.length > 0) {
+                                    for (let cond of domainFuncs) {
+                                        if (!cond.evaluate({ x: gx[p], y: gy[p], z: gz[p] })) { valid = false; break; }
+                                    }
+                                }
+                                vals.push(valid ? mainFunc.evaluate({ x: gx[p], y: gy[p], z: gz[p] }) : NaN);
+                            } catch { vals.push(NaN); }
+                        }
+                        result.datasets.push({ type: 'isosurface', x: gx, y: gy, z: gz, values: vals, color: ex.color, opacity: ex.opacity });
+                    });
+                }
+                paramExprs.forEach(ex => {
+                    let px = [], py = [], pz = [];
+                    const steps = 1000;
+                    const dt = (ex.tMax - ex.tMin) / steps;
+                    const xFunc = math.compile(ex.xExpr);
+                    const yFunc = math.compile(ex.yExpr);
+                    const zFunc = ex.zExpr ? math.compile(ex.zExpr) : null;
+                    for (let i = 0; i <= steps; i++) {
+                        let t = ex.tMin + i * dt;
+                        try { px.push(xFunc.evaluate({ t })); py.push(yFunc.evaluate({ t })); pz.push(zFunc ? zFunc.evaluate({ t }) : 0); } catch {}
+                    }
+                    result.datasets.push({ type: 'scatter3d', x: px, y: py, z: pz, color: ex.color, opacity: ex.opacity });
+                });
+                self.postMessage({ type: 'done', result });
+            };
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        worker = new Worker(URL.createObjectURL(blob));
+        worker.onmessage = (e) => { if (e.data.type === 'done') render3DData(e.data.result); };
+    }
+
+    function cleanLatex(latexStr) {
+        return latexStr.replace(/\\frac{(.+?)}{(.+?)}/g, '($1)/($2)').replace(/\\sqrt{(.+?)}/g, 'sqrt($1)').replace(/\\pi/g, 'pi').replace(/\\times/g, '*').replace(/\\div/g, '/').replace(/\\left|\\right/g, '').replace(/\\/g, '').replace(/(\d)([a-zA-Z(])/g, '$1*$2').replace(/([a-zA-Z)])(\d)/g, '$1*$2');
+    }
+
+    function parseImplicit(latexStr) {
+        let expr = cleanLatex(latexStr);
+        if (expr.includes('=')) {
+            const parts = expr.split('=');
+            expr = `(${parts[0]}) - (${parts[1]})`;
+        }
+        return expr;
+    }
+
+    function parseParametric(latexStr) {
+        let str = cleanLatex(latexStr);
+        str = str.replace(/b\s*\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*t\s*\)/g, '($1*(1-t)^3 + 3*($2)*(1-t)^2*t + 3*($3)*(1-t)*t^2 + ($4)*t^3)');
+        let tRange = [0, 2 * Math.PI];
+        const rangeMatch = str.match(/t\s*(?:在|∈|in)?\s*\[\s*([^\]]+)\s*,\s*([^\]]+)\s*\]/i);
+        if (rangeMatch) {
+            try { tRange = [math.evaluate(rangeMatch[1]), math.evaluate(rangeMatch[2])]; } catch (e) { console.warn("范围解析失败:", rangeMatch[1], rangeMatch[2]); }
+            str = str.replace(rangeMatch[0], '');
+        }
+        let xExpr = '0', yExpr = '0', zExpr = null;
+        const xMatch = str.match(/x\s*=\s*([^,]+)/i), yMatch = str.match(/y\s*=\s*([^,]+)/i), zMatch = str.match(/z\s*=\s*([^,]+)/i);
+        if (xMatch && yMatch) {
+            xExpr = xMatch[1].trim(); yExpr = yMatch[1].trim();
+            if (zMatch) zExpr = zMatch[1].trim();
+        }
+        return { xExpr, yExpr, zExpr, tMin: tRange[0], tMax: tRange[1] };
+    }
+
+    function parseDomain(domainStr) {
+        if (!domainStr || domainStr.trim() === '') return null;
+        let processed = domainStr.replace(/(-?\d+(?:\.\d+)?)\s*<\s*([a-zA-Z])\s*<\s*(-?\d+(?:\.\d+)?)/g, '($2 > $1) && ($2 < $3)').replace(/(-?\d+(?:\.\d+)?)\s*<=\s*([a-zA-Z])\s*<=\s*(-?\d+(?:\.\d+)?)/g, '($2 >= $1) && ($2 <= $3)');
+        return processed.replace(/,/g, ' && ');
+    }
+
+    // 自动分析公式中的数值大小，调整空间范围
+    function autoAdjustRange() {
+        const space = getCurrentSpace();
+        let maxNum = 5; // 默认最小值
+        
+        space.functions.forEach(item => {
+            // 提取公式中所有数字
+            const nums = (item.latex.match(/\d+(\.\d+)?/g) || []);
+            nums.forEach(n => {
+                const val = parseFloat(n);
+                // 如果是大数值（可能代表半径的平方等），开根号作为参考
+                if (val > 0) {
+                    maxNum = Math.max(maxNum, Math.sqrt(val), val * 0.5);
+                }
+            });
+        });
+
+        // 2D 视窗自适应
+        if (currentMode === '2D') {
+            const range = Math.max(8, Math.ceil(maxNum * 1.5));
+            space.boundingbox = [-range, range, range, -range]; // 对于新空间，Y轴也统一
+            // 如果是奶龙空间，Y轴仍然居中在奶龙附近，但整体范围根据公式扩大
+            if (space.id === '2d-space-1' && maxNum <= 12) {
+                space.boundingbox = [-8, 24, 8, 8]; 
+            }
+        } 
+        // 3D 范围自适应
+        else {
+            const range = Math.max(5, Math.ceil(maxNum * 1.2));
+            const rangeInput = document.getElementById('spaceRange');
+            if (parseInt(rangeInput.value) < range) {
+                rangeInput.value = range;
+                document.getElementById('rangeValue').innerText = range;
+            }
+        }
+    }
+
+    function renderSpaceTabs() {
+        const container = document.getElementById('spaceTabs');
+        container.innerHTML = '';
+        workspaces[currentMode].forEach(space => {
+            const tab = document.createElement('div');
+            tab.className = `space-tab ${space.id === activeSpaceId[currentMode] ? 'active' : ''}`;
+            tab.innerHTML = `<span>${space.name}</span>${workspaces[currentMode].length > 1 ? `<span class="close-space" onclick="event.stopPropagation(); deleteSpace('${space.id}')">×</span>` : ''}`;
+            tab.onclick = () => switchSpace(space.id);
+            container.appendChild(tab);
+        });
+    }
+
+    function createNewSpace() {
+        const mode = currentMode;
+        const count = workspaces[mode].length + 1;
+        const newSpace = {
+            id: `${mode.toLowerCase()}-space-${Date.now()}`,
+            name: `${mode} 空间 ${count}`,
+            boundingbox: mode === '2D' ? [-15, 15, 15, -15] : undefined,
+            functions: []
+        };
+        workspaces[mode].push(newSpace);
+        activeSpaceId[mode] = newSpace.id;
+        
+        // 新空间自动放宽 3D 范围
+        if (mode === '3D') {
+            document.getElementById('spaceRange').value = 15;
+            document.getElementById('rangeValue').innerText = 15;
+        }
+        
+        renderSpaceTabs();
+        renderFunctionList();
+        triggerDraw();
+    }
+
+    function deleteSpace(spaceId) {
+        const mode = currentMode;
+        if (workspaces[mode].length <= 1) return;
+        workspaces[mode] = workspaces[mode].filter(s => s.id !== spaceId);
+        if (activeSpaceId[mode] === spaceId) activeSpaceId[mode] = workspaces[mode][0].id;
+        renderSpaceTabs();
+        renderFunctionList();
+        if (currentMode === '2D' && board) { JXG.JSXGraph.freeBoard(board); board = null; }
+        triggerDraw();
+    }
+
+    function deleteCurrentSpace() { deleteSpace(activeSpaceId[currentMode]); }
+
+    function switchSpace(spaceId) {
+        activeSpaceId[currentMode] = spaceId;
+        renderSpaceTabs();
+        renderFunctionList();
+        if (currentMode === '2D' && board) { JXG.JSXGraph.freeBoard(board); board = null; }
+        triggerDraw();
+    }
+
+    function resetView() {
+        const space = getCurrentSpace();
+        if (currentMode === '2D') {
+            space.boundingbox = (space.id === '2d-space-1') ? [-8, 24, 8, 8] : [-15, 15, 15, -15];
+            triggerDraw();
+        } else {
+            // 重置 Plotly 3D 视角
+            if (typeof Plotly !== 'undefined') {
+                Plotly.relayout('graph3d', { 'scene.camera': { eye: { x: 1.5, y: 1.5, z: 1.2 } } });
+            }
+        }
+    }
+
+    function renderFunctionList() {
+        const list2D = document.getElementById('functionList2D');
+        const list3D = document.getElementById('functionList3D');
+        const emptyMsg = document.getElementById('emptyMsg');
+        list2D.innerHTML = ''; list3D.innerHTML = '';
+        list2D.classList.toggle('active-list', currentMode === '2D');
+        list3D.classList.toggle('active-list', currentMode === '3D');
+
+        const space = getCurrentSpace();
+        const functions = space.functions;
+        emptyMsg.style.display = functions.length === 0 ? 'block' : 'none';
+
+        const renderItem = (item, container, mode) => {
+            const div = document.createElement('div');
+            div.className = 'function-item';
+            div.dataset.id = item.id;
+            const opacity = item.opacity !== undefined ? item.opacity : 1.0;
+            div.innerHTML = `
+                <div class="function-header">
+                    <select class="type-select" onchange="updateItemType('${item.id}', '${mode}', this.value)">
+                        <option value="implicit" ${item.type === 'implicit' ? 'selected' : ''}>隐函数</option>
+                        <option value="parametric" ${item.type === 'parametric' ? 'selected' : ''}>参数方程</option>
+                    </select>
+                    <math-field virtual-keyboard-mode="manual">${escapeHtml(item.latex)}</math-field>
+                    <button class="delete-btn" onclick="deleteItem('${item.id}', '${mode}')">×</button>
+                </div>
+                <div class="function-row domain-row" style="display: ${item.type === 'implicit' ? 'flex' : 'none'};">
+                    <input type="text" class="domain-input" placeholder="值域限制 (如 y > 0)" value="${escapeHtml(item.domain || '')}" onchange="updateItemDomain('${item.id}', '${mode}', this.value)">
+                </div>
+                <div class="color-module">
+                    <label>颜色：<input type="color" value="${item.color}" onchange="updateItemColor('${item.id}', '${mode}', this.value)"></label>
+                    <label>透明度：<input type="range" class="opacity-slider" min="0.1" max="1" step="0.1" value="${opacity}" oninput="updateItemOpacity('${item.id}', '${mode}', this.value, this.nextElementSibling)"><span class="opacity-value">${opacity}</span></label>
+                </div>
+            `;
+            const mathField = div.querySelector('math-field');
+            const handleMathFieldChange = () => { 
+                item.latex = mathField.getValue(); 
+                autoAdjustRange(); // 输入时动态调整范围
+                clearTimeout(debounceTimer); 
+                debounceTimer = setTimeout(triggerDraw, 600); 
+            };
+            mathField.addEventListener('input', handleMathFieldChange);
+            mathField.addEventListener('change', handleMathFieldChange);
+            container.appendChild(div);
+        };
+        functions.forEach(item => renderItem(item, currentMode === '2D' ? list2D : list3D, currentMode));
+    }
+
+    function updateItemType(id, mode, value) {
+        const space = getCurrentSpace();
+        const item = space.functions.find(i => i.id === id);
+        if (item) {
+            item.type = value;
+            if (value === 'implicit' && mode === '2D') item.latex = 'x^2 + y^2 = 1';
+            if (value === 'implicit' && mode === '3D') item.latex = 'x^2 + y^2 + z^2 = 9';
+            if (value === 'parametric' && mode === '2D') item.latex = 'x = cos(t), y = sin(t), t在[0, 2pi]';
+            if (value === 'parametric' && mode === '3D') item.latex = 'x = cos(t), y = sin(t), z = t/3, t在[0, 4pi]';
+            autoAdjustRange();
+            renderFunctionList(); triggerDraw();
+        }
+    }
+    function updateItemColor(id, mode, value) { const item = getCurrentSpace().functions.find(i => i.id === id); if (item) { item.color = value; triggerDraw(); } }
+    function updateItemOpacity(id, mode, value, spanEl) { const item = getCurrentSpace().functions.find(i => i.id === id); if (item) { item.opacity = parseFloat(value); if (spanEl) spanEl.innerText = value; triggerDraw(); } }
+    function updateItemDomain(id, mode, value) { const item = getCurrentSpace().functions.find(i => i.id === id); if (item) { item.domain = value; triggerDraw(); } }
+    function deleteItem(id, mode) { const space = getCurrentSpace(); space.functions = space.functions.filter(i => i.id !== id); renderFunctionList(); triggerDraw(); }
+
+    function addFunctionItem() {
+        const mode = currentMode;
+        const space = getCurrentSpace();
+        const newItem = {
+            id: generateId(), type: 'implicit',
+            latex: mode === '2D' ? 'x^2 + y^2 = 1' : 'x^2 + y^2 + z^2 = 9',
+            color: '#000000', opacity: 1.0, domain: ''
+        };
+        space.functions.push(newItem);
+        autoAdjustRange();
+        renderFunctionList();
+        const list = document.getElementById(mode === '2D' ? 'functionList2D' : 'functionList3D');
+        list.scrollTop = list.scrollHeight;
+        triggerDraw();
+        const items = list.querySelectorAll('.function-item');
+        if(items.length > 0) items[items.length - 1].querySelector('math-field').focus();
+    }
+
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('btn2D').classList.toggle('active', mode === '2D');
+        document.getElementById('btn3D').classList.toggle('active', mode === '3D');
+        document.getElementById('jxgbox').style.display = mode === '2D' ? 'block' : 'none';
+        document.getElementById('graph3d').style.display = mode === '3D' ? 'block' : 'none';
+        document.getElementById('precisionControl').style.display = mode === '3D' ? 'block' : 'none';
+        document.getElementById('canvasTip').innerText = mode === '2D' ? '🖱️ 滚动缩放 / 拖拽平移' : '🖱️ 滚动缩放 / 拖拽旋转';
+        
+        autoAdjustRange();
+        renderSpaceTabs(); renderFunctionList();
+        if (currentMode === '2D' && board) { JXG.JSXGraph.freeBoard(board); board = null; }
+        triggerDraw();
+    }
+
+    function triggerDraw() {
+        const statusEl = document.getElementById('status-message');
+        statusEl.innerText = '';
+        try {
+            const space = getCurrentSpace();
+            const items = space.functions;
+            if (currentMode === '2D') {
+                const expressions = [];
+                items.forEach(item => {
+                    try {
+                        if (item.type === 'implicit') {
+                            const exprStr = parseImplicit(item.latex);
+                            const domainArr = parseDomain(item.domain);
+                            expressions.push({ type: 'implicit', compiled: math.compile(exprStr), domainCompiled: domainArr ? domainArr.split('&&').map(d => math.compile(d.trim())) : null, color: item.color, opacity: item.opacity ?? 1.0 });
+                        } else {
+                            const param = parseParametric(item.latex);
+                            expressions.push({ type: 'parametric', xCompiled: math.compile(param.xExpr), yCompiled: math.compile(param.yExpr), tMin: param.tMin, tMax: param.tMax, color: item.color, opacity: item.opacity ?? 1.0 });
+                        }
+                    } catch (e) { console.error("2D 解析失败:", item.latex, e); statusEl.innerText = `公式解析失败: ${item.latex}`; }
+                });
+                draw2D(expressions);
+            } else {
+                draw3D(items);
+            }
+        } catch (err) { statusEl.innerText = '渲染错误: ' + err.message; console.error(err); }
+    }
+
+    function init2DBoard() {
+        if (board) JXG.JSXGraph.freeBoard(board);
+        const space = getCurrentSpace();
+        const bbox = space.boundingbox || [-15, 15, 15, -15];
+        board = JXG.JSXGraph.initBoard('jxgbox', {
+            boundingbox: bbox,
+            axis: true, grid: { gridX: 1, gridY: 1, strokeColor: '#e5e5e5', strokeWidth: 1 },
+            showCopyright: false, showNavigation: false,
+            defaultAxes: { x: { strokeColor: '#000', strokeWidth: 1.5 }, y: { strokeColor: '#000', strokeWidth: 1.5 } }
+        });
+    }
+
+    function draw2D(expressions) {
+        init2DBoard();
+        expressions.forEach(item => {
+            if (item.type === 'implicit') {
+                board.create('implicitcurve', [
+                    (x, y) => {
+                        if (item.domainCompiled) { for (let cond of item.domainCompiled) { try { if (!cond.evaluate({ x, y })) return NaN; } catch { return NaN; } } }
+                        try { return item.compiled.evaluate({ x, y }); } catch { return NaN; }
+                    }
+                ], { strokeColor: item.color, strokeWidth: 3, strokeOpacity: item.opacity, withLabel: false });
+            } else {
+                board.create('curve', [
+                    (t) => item.xCompiled.evaluate({ t }),
+                    (t) => item.yCompiled.evaluate({ t }),
+                    item.tMin, item.tMax
+                ], { strokeColor: item.color, strokeWidth: 2, strokeOpacity: item.opacity });
+            }
+        });
+    }
+
+    function draw3D(items) {
+        document.getElementById('jxgbox').style.display = 'none';
+        document.getElementById('graph3d').style.display = 'block';
+        document.getElementById('loader').style.display = 'flex';
+        document.getElementById('loaderText').innerText = '正在计算空间数据...';
+        if (!worker) initWorker();
+        
+        const size = parseInt(document.getElementById('resolution').value);
+        // 关键修复：动态读取 3D 空间范围，不再写死为 5
+        const range = parseInt(document.getElementById('spaceRange').value);
+        
+        const workerExpressions = [];
+        items.forEach(item => {
+            try {
+                if (item.type === 'implicit') {
+                    workerExpressions.push({ type: 'implicit', equationStr: parseImplicit(item.latex), domainStr: parseDomain(item.domain), color: item.color, opacity: item.opacity ?? 1.0 });
+                } else {
+                    const param = parseParametric(item.latex);
+                    workerExpressions.push({ type: 'parametric', xExpr: param.xExpr, yExpr: param.yExpr, zExpr: param.zExpr, tMin: param.tMin, tMax: param.tMax, color: item.color, opacity: item.opacity ?? 1.0 });
+                }
+            } catch (e) { console.error("3D 解析失败:", item.latex, e); document.getElementById('status-message').innerText = `3D公式解析失败: ${item.latex}`; }
+        });
+        if (workerExpressions.length === 0) { Plotly.purge('graph3d'); document.getElementById('loader').style.display = 'none'; return; }
+        worker.postMessage({ expressions: workerExpressions, size, range });
+    }
+
+    function render3DData(result) {
+        const plotlyData = result.datasets.map(ds => {
+            if (ds.type === 'isosurface') {
+                return { type: 'isosurface', x: ds.x, y: ds.y, z: ds.z, value: ds.values, isomin: 0, isomax: 0, surface: { show: true, color: ds.color, opacity: ds.opacity }, contours: { show: false }, caps: { x: { show: false }, y: { show: false }, z: { show: false } } };
+            } else {
+                return { type: 'scatter3d', x: ds.x, y: ds.y, z: ds.z, mode: 'lines', line: { color: ds.color, width: 4 }, opacity: ds.opacity };
+            }
+        });
+        if (plotlyData.length === 0) { Plotly.purge('graph3d'); document.getElementById('loader').style.display = 'none'; return; }
+        
+        // 关键修复：移除硬编码的 range: [-5, 5]，让 Plotly 根据数据自动适配，并开启滚轮缩放
+        const layout = { 
+            margin: { l: 0, r: 0, b: 0, t: 0 }, 
+            scene: { 
+                xaxis: { title: 'X', zeroline: true, gridcolor: '#e5e5e5', showbackground: false, dtick: 2 }, 
+                yaxis: { title: 'Y', zeroline: true, gridcolor: '#e5e5e5', showbackground: false, dtick: 2 }, 
+                zaxis: { title: 'Z', zeroline: true, gridcolor: '#e5e5e5', showbackground: false, dtick: 2 }, 
+                camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } },
+                aspectmode: 'data' // 保证几何体比例正确（球体看起来就是圆球）
+            }, 
+            paper_bgcolor: '#ffffff' 
+        };
+        
+        Plotly.react('graph3d', plotlyData, layout, { displayModeBar: false });
+        document.getElementById('loader').style.display = 'none';
+    }
+
+    window.onload = () => {
+        const default2D = workspaces['2D'][0];
+        default2D.functions = [
+            { id: generateId(), type: 'implicit', latex: '((x + 2.17 - 0.1551724*(y - 18.63))/0.115)^2 + ((y - 18.63)/0.29)^2 = 1', color: '#FF0000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'implicit', latex: '((x + 0.62)/0.59)^2 + ((y - 18.92)/0.53)^2 = 1', color: '#000000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'implicit', latex: '(x + 0.44)^2 + (y - 18.84)^2 = 0.09', color: '#000000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'parametric', latex: 'x = b(-2.08, -1.6, -0.88, -0.12, t), y = b(18.94, 19.72, 20.1, 20.08, t), t在[0, 1]', color: '#000000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'parametric', latex: 'x = b(-0.12, 1.1, 1.78, 2.18, t), y = b(20.08, 20.14, 19.52, 18.5, t), t在[0, 1]', color: '#000000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'parametric', latex: 'x = b(-2.08, -2.16, -2.2, -2.32, t), y = b(18.94, 18.64, 18.22, 17.98, t), t在[0, 1]', color: '#000000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'parametric', latex: 'x = b(-2.32, -2.42, -2.32, -2.2, t), y = b(17.98, 17.84, 17.72, 17.6, t), t在[0, 1]', color: '#000000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'parametric', latex: 'x = b(-2.2, -1.76, -1.52, -1.64, t), y = b(17.6, 17.06, 16.44, 15.88, t), t在[0, 1]', color: '#000000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'parametric', latex: 'x = b(-1.64, -1.68, -2.08, -2.48, t), y = b(15.88, 15.22, 14.7, 14.18, t), t在[0, 1]', color: '#000000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'parametric', latex: 'x = b(-2.32, -2, -1.58, -1.24, t), y = b(17.8, 17.88, 17.86, 17.82, t), t在[0, 1]', color: '#000000', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'parametric', latex: 'x = b(2.18, 2.7, 3.6, 4.2, t), y = b(18.5, 17.18, 15.94, 14.42, t), t在[0, 1]', color: '#000000', opacity: 1.0, domain: '' }
+        ];
+
+        const default3D = workspaces['3D'][0];
+        default3D.functions = [
+            { id: generateId(), type: 'implicit', latex: 'x^2 + y^2 + z^2 = 100', color: '#0000FF', opacity: 1.0, domain: '' },
+            { id: generateId(), type: 'parametric', latex: 'x = cos(t), y = sin(t), z = t/3, t在[-4pi, 4pi]', color: '#FF0000', opacity: 1.0, domain: '' }
+        ];
+
+        // 初始化时根据默认公式调整一次范围
+        autoAdjustRange();
+        renderSpaceTabs();
+        switchMode('2D');
+    };
+</script>
+</body>
+</html>

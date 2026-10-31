@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多空间函数可视化 · 参数滑块</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0d0d1a;
+        }
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* ============ 顶部工具栏 ============ */
+        #top-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 14px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%);
+            border-bottom: 1px solid rgba(255,170,0,0.18);
+            flex-shrink: 0;
+            z-index: 50;
+        }
+        #logo {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #ffaa00;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+        #space-tabs {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+        #space-tabs::-webkit-scrollbar { height: 4px; }
+        #space-tabs::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+        .space-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.05);
+            color: #aaa;
+            font-size: 0.82rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.18s;
+            white-space: nowrap;
+            user-select: none;
+        }
+        .space-tab:hover { background: rgba(255,255,255,0.1); color: #eee; }
+        .space-tab.active {
+            background: rgba(255,170,0,0.18);
+            color: #ffaa00;
+            border-color: rgba(255,170,0,0.5);
+        }
+        .space-tab .tab-dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+        .space-tab.active .tab-dot { background: #ffaa00; }
+
+        #add-space-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: rgba(255,170,0,0.15);
+            color: #ffaa00;
+            border: 1px solid rgba(255,170,0,0.4);
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+        #add-space-btn:hover { background: #ffaa00; color: #111; }
+
+        #layout-controls {
+            display: flex;
+            gap: 3px;
+            background: #12121f;
+            border-radius: 20px;
+            padding: 3px;
+            border: 1px solid #333;
+        }
+        #layout-controls button {
+            padding: 5px 12px;
+            border-radius: 16px;
+            background: transparent;
+            color: #888;
+            border: none;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+        #layout-controls button:hover:not(.active) { background: #222; color: #ccc; }
+        #layout-controls button.active { background: #ffaa00; color: #111; font-weight: 600; }
+
+        /* ============ 视图容器 ============ */
+        #view-container { position: relative; flex: 1; overflow: hidden; background: #0d0d1a; }
+        .space-container {
+            position: absolute;
+            overflow: hidden;
+            background: #111122;
+            transition: box-shadow 0.2s;
+        }
+        .space-container.active-space { box-shadow: inset 0 0 0 2px rgba(255,170,0,0.4); }
+        .space-container canvas { display: block; position: absolute; top: 0; left: 0; }
+        .space-container > div:first-of-type { position: absolute; top: 0; left: 0; }
+
+        /* ============ 浮动控制面板 ============ */
+        .space-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 290px;
+            max-width: calc(100% - 20px);
+            max-height: calc(100% - 20px);
+            background: rgba(24, 24, 36, 0.94);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 0.8rem;
+            color: #ddd;
+            z-index: 10;
+        }
+        .space-panel.collapsed .panel-body { display: none; }
+        .space-panel.collapsed { width: auto; }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: rgba(255,170,0,0.08);
+            border-bottom: 1px solid rgba(255,170,0,0.15);
+            gap: 6px;
+        }
+        .panel-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #ffaa00;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .panel-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .mode-toggle-small {
+            display: flex;
+            background: #12121f;
+            border-radius: 12px;
+            padding: 2px;
+            border: 1px solid #333;
+        }
+        .mode-toggle-small button {
+            padding: 3px 8px;
+            border-radius: 10px;
+            border: none;
+            background: transparent;
+            color: #888;
+            font-size: 0.68rem;
+            cursor: pointer;
+            transition: all 0.18s;
+            font-weight: 500;
+        }
+        .mode-toggle-small button.active { background: #ffaa00; color: #111; }
+        .icon-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid #444;
+            color: #aaa;
+            border-radius: 6px;
+            width: 22px;
+            height: 22px;
+            font-size: 0.75rem;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            padding: 0;
+        }
+        .icon-btn:hover { background: #ffaa00; color: #111; border-color: #ffaa00; }
+        .icon-btn.danger:hover { background: #ff4444; color: #fff; border-color: #ff4444; }
+
+        .panel-body {
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            gap: 8px;
+            overflow: hidden;
+            flex: 1;
+        }
+        .panel-hint {
+            font-size: 0.65rem;
+            color: #889;
+            background: rgba(255,170,0,0.06);
+            border-left: 2px solid rgba(255,170,0,0.5);
+            padding: 4px 7px;
+            border-radius: 3px;
+            line-height: 1.4;
+        }
+        .panel-hint code {
+            color: #ffaa00;
+            background: #222;
+            padding: 0 3px;
+            border-radius: 2px;
+            font-size: 0.62rem;
+        }
+
+        .function-list {
+            overflow-y: auto;
+            max-height: 26vh;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-right: 2px;
+        }
+        .function-list::-webkit-scrollbar { width: 5px; }
+        .function-list::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+        .func-item {
+            background: rgba(255,255,255,0.045);
+            border-radius: 8px;
+            padding: 7px;
+            border-left: 3px solid;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .func-item-header { display: flex; gap: 4px; align-items: center; }
+        .func-expr {
+            flex: 1;
+            min-width: 0;
+            background: #1a1a2a;
+            color: #fff;
+            border: 1px solid #333;
+            border-radius: 14px;
+            padding: 5px 10px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.78rem;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .func-expr:focus { border-color: #ffaa00; box-shadow: 0 0 0 2px rgba(255,170,0,0.2); }
+        .func-controls { display: flex; gap: 4px; align-items: center; }
+        .color-picker {
+            width: 24px; height: 24px;
+            border: 2px solid #444;
+            border-radius: 5px;
+            cursor: pointer;
+            padding: 0;
+            background: transparent;
+            flex-shrink: 0;
+        }
+        .color-picker:hover { border-color: #ffaa00; }
+        .width-slider { flex: 1; min-width: 40px; accent-color: #ffaa00; cursor: pointer; height: 20px; }
+        .style-select {
+            background: #1a1a2a;
+            color: #ddd;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 3px 4px;
+            font-size: 0.68rem;
+            cursor: pointer;
+            outline: none;
+        }
+        .style-select:focus { border-color: #ffaa00; }
+
+        /* ============ 参数区 ============ */
+        .params-section {
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            max-height: 30vh;
+            overflow-y: auto;
+        }
+        .params-section::-webkit-scrollbar { width: 5px; }
+        .params-section::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        .params-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: #ffaa00;
+            font-weight: 500;
+            padding: 0 3px;
+            letter-spacing: 0.3px;
+        }
+        .params-header .hint-mini {
+            font-size: 0.6rem;
+            color: #667;
+            font-weight: 400;
+        }
+        .param-add-btn {
+            width: 20px; height: 20px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,170,0,0.4);
+            background: rgba(255,170,0,0.12);
+            color: #ffaa00;
+            font-size: 0.85rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .param-add-btn:hover { background: #ffaa00; color: #111; }
+
+        .params-list { display: flex; flex-direction: column; gap: 5px; }
+
+        .param-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255,255,255,0.035);
+            border-radius: 7px;
+            padding: 4px 6px;
+            border-left: 3px solid rgba(255,170,0,0.55);
+        }
+        .param-name {
+            font-family: 'Consolas', monospace;
+            font-style: italic;
+            color: #ffcc66;
+            font-size: 0.82rem;
+            font-weight: 600;
+            min-width: 14px;
+            text-align: center;
+            user-select: none;
+            cursor: pointer;
+        }
+        .param-slider {
+            flex: 1;
+            min-width: 40px;
+            accent-color: #ffaa00;
+            cursor: pointer;
+            height: 18px;
+        }
+        .param-value {
+            width: 56px;
+            background: #1a1a2a;
+            color: #fff;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 3px 5px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.72rem;
+            text-align: right;
+            outline: none;
+        }
+        .param-value:focus { border-color: #ffaa00; }
+        /* 隐藏数字输入框的上下箭头 */
+        .param-value::-webkit-outer-spin-button,
+        .param-value::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .param-value { -moz-appearance: textfield; }
+
+        .param-del {
+            width: 18px; height: 18px;
+            border-radius: 4px;
+            background: transparent;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 0.85rem;
+            line-height: 1;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .param-del:hover { background: #ff4444; color: #fff; }
+
+        .panel-buttons { display: flex; gap: 5px; }
+        .panel-btn {
+            flex: 1;
+            padding: 7px;
+            border-radius: 18px;
+            border: none;
+            font-size: 0.76rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s;
+        }
+        .panel-btn.add {
+            background: rgba(255,170,0,0.15);
+            color: #ffaa00;
+            border: 1px solid rgba(255,170,0,0.4);
+        }
+        .panel-btn.add:hover { background: rgba(255,170,0,0.28); }
+        .panel-btn.plot { background: #ffaa00; color: #111; }
+        .panel-btn.plot:hover { background: #ffbb22; }
+
+        /* ============ 虚拟数学键盘 ============ */
+        #math-keyboard {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(20, 20, 32, 0.96);
+            backdrop-filter: blur(12px);
+            border-radius: 14px;
+            padding: 10px;
+            border: 1px solid rgba(255,170,0,0.35);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+            z-index: 200;
+            width: 460px;
+            max-width: calc(100vw - 20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s, transform 0.18s;
+        }
+        #math-keyboard.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+        .kb-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.68rem;
+            color: #ffaa00;
+            margin-bottom: 6px;
+            padding: 0 4px;
+            font-weight: 500;
+        }
+        .kb-title .kb-sub { color: #667; font-weight: 400; }
+        .kb-row { display: flex; gap: 4px; margin-bottom: 4px; }
+        .kb-row:last-child { margin-bottom: 0; }
+        .kb-row button {
+            flex: 1;
+            padding: 8px 2px;
+            background: #2a2a3a;
+            color: #eee;
+            border: 1px solid #444;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-family: 'Consolas', 'Monaco', monospace;
+            cursor: pointer;
+            transition: all 0.12s;
+            user-select: none;
+            min-width: 0;
+        }
+        .kb-row button:hover { background: #ffaa00; color: #111; border-color: #ffaa00; }
+        .kb-row button:active { transform: scale(0.94); }
+        .kb-row button.func { color: #ffcc66; font-size: 0.72rem; font-weight: 600; }
+        .kb-row button.func:hover { color: #111; }
+        .kb-row button.param { color: #ffcc66; font-style: italic; font-weight: 700; }
+        .kb-row button.param:hover { color: #111; }
+        .kb-row button.action { background: #3a2a2a; color: #ff9999; }
+        .kb-row button.action:hover { background: #ff5555; color: #fff; border-color: #ff5555; }
+
+        /* ============ 全局 ============ */
+        #global-hint {
+            position: fixed;
+            bottom: 14px;
+            left: 14px;
+            color: rgba(255,255,255,0.4);
+            font-size: 0.7rem;
+            background: rgba(0,0,0,0.4);
+            padding: 5px 12px;
+            border-radius: 16px;
+            pointer-events: none;
+            z-index: 30;
+        }
+        #loading {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffaa00;
+            font-size: 0.95rem;
+            background: rgba(0,0,0,0.85);
+            padding: 12px 26px;
+            border-radius: 20px;
+            z-index: 500;
+            display: none;
+            backdrop-filter: blur(4px);
+        }
+
+        @media (max-width: 700px) {
+            #logo { display: none; }
+            #layout-controls button { padding: 5px 8px; font-size: 0.7rem; }
+            .space-panel { width: 240px; }
+            #math-keyboard { width: calc(100vw - 20px); bottom: 10px; }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div id="top-bar">
+        <div id="logo">📐 多空间可视化</div>
+        <div id="space-tabs"></div>
+        <div id="layout-controls">
+            <button data-layout="single" class="active">单视图</button>
+            <button data-layout="split-h">左右</button>
+            <button data-layout="split-v">上下</button>
+            <button data-layout="quad">2×2</button>
+        </div>
+        <button id="add-space-btn">+ 新建空间</button>
+    </div>
+    <div id="view-container"></div>
+</div>
+
+<!-- 虚拟数学键盘 -->
+<div id="math-keyboard">
+    <div class="kb-title">
+        <span>⌨ 数学符号键盘</span>
+        <span class="kb-sub">点击插入光标处</span>
+    </div>
+    <div class="kb-row">
+        <button data-insert="x">x</button>
+        <button data-insert="y">y</button>
+        <button data-insert="z">z</button>
+        <button data-insert="(">(</button>
+        <button data-insert=")">)</button>
+        <button data-insert="^">^</button>
+        <button data-insert="√(" class="func">√</button>
+    </div>
+    <div class="kb-row">
+        <button data-insert="sin(" class="func">sin</button>
+        <button data-insert="cos(" class="func">cos</button>
+        <button data-insert="tan(" class="func">tan</button>
+        <button data-insert="log(" class="func">log</button>
+        <button data-insert="ln(" class="func">ln</button>
+        <button data-insert="π" class="func">π</button>
+        <button data-insert="e" class="func">e</button>
+    </div>
+    <div class="kb-row">
+        <button data-insert="7">7</button>
+        <button data-insert="8">8</button>
+        <button data-insert="9">9</button>
+        <button data-insert="/">/</button>
+        <button data-insert="*">*</button>
+        <button data-insert="=">=</button>
+    </div>
+    <div class="kb-row">
+        <button data-insert="4">4</button>
+        <button data-insert="5">5</button>
+        <button data-insert="6">6</button>
+        <button data-insert="-">-</button>
+        <button data-insert="+">+</button>
+        <button data-action="backspace" class="action">⌫</button>
+    </div>
+    <div class="kb-row">
+        <button data-insert="1">1</button>
+        <button data-insert="2">2</button>
+        <button data-insert="3">3</button>
+        <button data-insert="0">0</button>
+        <button data-insert=".">.</button>
+        <button data-action="clear" class="action">C</button>
+    </div>
+</div>
+
+<div id="global-hint">拖动旋转 · 滚轮缩放 · 滑块实时调参</div>
+<div id="loading">⏳ 计算中...</div>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+        }
+    }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ==================== 常量 ====================
+const AXIS_RANGE = 12;
+const GRID_SIZE = 24;
+const GRID_DIVISIONS = 24;
+const CURVE_X_RANGE = 12;
+const SURFACE_RANGE = 6;
+const SURFACE_SEGMENTS = 32;
+const MARCHING_RES = 120;
+const IMPLICIT_RES = 38;
+
+// ==================== 表达式编译 ====================
+/**
+ * 将数学表达式编译为可调用的 JS 函数
+ * @param {string} expr 表达式
+ * @param {string[]} varNames 变量名（如 ['x'] 或 ['x','y']）
+ * @param {string[]} paramNames 参数名（如 ['a','b']）
+ * @returns {Function} 接受 (var1, var2, ..., param1, param2, ..., Math) 的函数
+ */
+function compileMathExpr(expr, varNames, paramNames) {
+    let jsExpr = expr.replace(/\^/g, '**');
+    jsExpr = jsExpr.replace(/√\s*\(/g, 'Math.sqrt(');
+    jsExpr = jsExpr.replace(/π/g, 'Math.PI');
+    jsExpr = jsExpr.replace(/(?<![a-zA-Z0-9_.])ln\s*\(/g, 'Math.log(');
+
+    const mathFunctions = ['sin', 'cos', 'tan', 'asin', 'acos', 'atan',
+        'sinh', 'cosh', 'tanh', 'sqrt', 'abs', 'exp', 'log', 'log10', 'log2',
+        'pow', 'floor', 'ceil', 'round', 'sign', 'min', 'max', 'cbrt'];
+    for (const fn of mathFunctions) {
+        const regex = new RegExp(`(?<![a-zA-Z0-9_.])${fn}\\s*\\(`, 'g');
+        jsExpr = jsExpr.replace(regex, `Math.${fn}(`);
+    }
+
+    jsExpr = jsExpr.replace(/\bPI\b/g, 'Math.PI');
+    if (!paramNames.includes('e')) {
+        jsExpr = jsExpr.replace(/(?<![a-zA-Z0-9_.])e(?![a-zA-Z0-9_])/g, 'Math.E');
+    }
+    if (!paramNames.includes('E')) {
+        jsExpr = jsExpr.replace(/(?<![a-zA-Z0-9_.])E(?![a-zA-Z0-9_])/g, 'Math.E');
+    }
+
+    const allArgs = [...varNames, ...paramNames, 'Math'];
+    const func = new Function(...allArgs, `"use strict"; return (${jsExpr});`);
+    return func;
+}
+
+function isImplicitEquation(expr) { return expr.includes('='); }
+
+function getLineStyleParams(style) {
+    switch (style) {
+        case 'dashed': return { dashSize: 0.4, gapSize: 0.2 };
+        case 'dotted': return { dashSize: 0.08, gapSize: 0.12 };
+        default: return null;
+    }
+}
+
+// ==================== 绘制构建函数 ====================
+
+/** 2D 显式曲线 */
+function build2DCurve(funcData, paramNames, paramValues) {
+    let func;
+    try {
+        func = compileMathExpr(funcData.expr, ['x'], paramNames);
+    } catch (e) { return null; }
+
+    const points = [];
+    const steps = 800;
+    const yLimit = 30;
+    for (let i = 0; i <= steps; i++) {
+        const x = -CURVE_X_RANGE + (2 * CURVE_X_RANGE) * i / steps;
+        let y;
+        try { y = func(x, ...paramValues, Math); } catch (e) { y = NaN; }
+        if (!isFinite(y) || isNaN(y)) continue;
+        if (Math.abs(y) > yLimit) continue;
+        points.push(new THREE.Vector3(x, y, 0));
+    }
+    if (points.length < 2) return null;
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const color = new THREE.Color(funcData.color);
+    const styleParams = getLineStyleParams(funcData.style);
+    if (styleParams) {
+        const material = new THREE.LineDashedMaterial({
+            color, linewidth: funcData.width,
+            dashSize: styleParams.dashSize, gapSize: styleParams.gapSize, scale: 1
+        });
+        const line = new THREE.Line(geometry, material);
+        line.computeLineDistances();
+        return line;
+    }
+    return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color, linewidth: funcData.width }));
+}
+
+/** 2D 隐式曲线 */
+function build2DImplicit(funcData, paramNames, paramValues) {
+    const eqIdx = funcData.expr.indexOf('=');
+    let lhs = funcData.expr.substring(0, eqIdx).trim().replace(/\bz\b/g, '0');
+    let rhs = funcData.expr.substring(eqIdx + 1).trim().replace(/\bz\b/g, '0');
+    if (!lhs) lhs = '0';
+    if (!rhs) rhs = '0';
+
+    let fL, fR;
+    try {
+        fL = compileMathExpr(lhs, ['x', 'y'], paramNames);
+        fR = compileMathExpr(rhs, ['x', 'y'], paramNames);
+    } catch (e) { return null; }
+
+    const f = (x, y) => {
+        try { return fL(x, y, ...paramValues, Math) - fR(x, y, ...paramValues, Math); }
+        catch (e) { return NaN; }
+    };
+
+    // Marching Squares
+    const nx = MARCHING_RES, ny = MARCHING_RES;
+    const xMin = -CURVE_X_RANGE, xMax = CURVE_X_RANGE;
+    const dx = (xMax - xMin) / nx, dy = (xMax - xMin) / ny;
+    const values = new Float32Array((nx + 1) * (ny + 1));
+    const idx = (i, j) => i + (nx + 1) * j;
+    for (let j = 0; j <= ny; j++) {
+        for (let i = 0; i <= nx; i++) {
+            const x = xMin + i * dx, y = xMin + j * dy;
+            let v = f(x, y);
+            values[idx(i, j)] = isFinite(v) ? v : 0;
+        }
+    }
+
+    const positions = [];
+    for (let j = 0; j < ny; j++) {
+        for (let i = 0; i < nx; i++) {
+            const v00 = values[idx(i, j)], v10 = values[idx(i + 1, j)];
+            const v11 = values[idx(i + 1, j + 1)], v01 = values[idx(i, j + 1)];
+            const x0 = xMin + i * dx, y0 = xMin + j * dy;
+            const x1 = x0 + dx, y1 = y0 + dy;
+            const pts = [];
+            if (v00 * v10 < 0) { const t = v00 / (v00 - v10); pts.push([x0 + t * dx, y0]); }
+            if (v10 * v11 < 0) { const t = v10 / (v10 - v11); pts.push([x1, y0 + t * dy]); }
+            if (v01 * v11 < 0) { const t = v01 / (v01 - v11); pts.push([x0 + t * dx, y1]); }
+            if (v00 * v01 < 0) { const t = v00 / (v00 - v01); pts.push([x0, y0 + t * dy]); }
+            if (pts.length === 2) {
+                positions.push(pts[0][0], pts[0][1], 0, pts[1][0], pts[1][1], 0);
+            } else if (pts.length === 4) {
+                positions.push(pts[0][0], pts[0][1], 0, pts[1][0], pts[1][1], 0);
+                positions.push(pts[2][0], pts[2][1], 0, pts[3][0], pts[3][1], 0);
+            }
+        }
+    }
+    if (positions.length === 0) return null;
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    return new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
+        color: new THREE.Color(funcData.color), linewidth: funcData.width
+    }));
+}
+
+/** 3D 显式曲面 */
+function build3DSurface(funcData, paramNames, paramValues) {
+    let func;
+    try {
+        func = compileMathExpr(funcData.expr, ['x', 'y'], paramNames);
+    } catch (e) { return null; }
+
+    const range = SURFACE_RANGE, segments = SURFACE_SEGMENTS;
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [], indices = [], colors = [];
+    const step = 2 * range / segments;
+    const grid = [];
+    let minZ = Infinity, maxZ = -Infinity;
+
+    for (let i = 0; i <= segments; i++) {
+        const x = -range + i * step;
+        grid[i] = [];
+        for (let j = 0; j <= segments; j++) {
+            const y = -range + j * step;
+            let z;
+            try { z = func(x, y, ...paramValues, Math); } catch (e) { z = NaN; }
+            if (!isFinite(z) || isNaN(z)) z = 0;
+            if (z > 12) z = 12;
+            if (z < -12) z = -12;
+            grid[i][j] = { x, y, z };
+            if (z < minZ) minZ = z;
+            if (z > maxZ) maxZ = z;
+        }
+    }
+
+    const baseColor = new THREE.Color(funcData.color);
+    for (let i = 0; i <= segments; i++) {
+        for (let j = 0; j <= segments; j++) {
+            const p = grid[i][j];
+            vertices.push(p.x, p.y, p.z);
+            const t = (p.z - minZ) / (maxZ - minZ || 1);
+            colors.push(baseColor.r * (0.6 + 0.4 * t), baseColor.g * (0.6 + 0.4 * t), baseColor.b * (0.6 + 0.4 * t));
+        }
+    }
+    for (let i = 0; i < segments; i++) {
+        for (let j = 0; j < segments; j++) {
+            const a = i * (segments + 1) + j, b = a + 1;
+            const c = (i + 1) * (segments + 1) + j, d = c + 1;
+            indices.push(a, b, c, b, d, c);
+        }
+    }
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+
+    const material = new THREE.MeshPhongMaterial({
+        vertexColors: true, side: THREE.DoubleSide, shininess: 30,
+        emissive: 0x112233, transparent: true, opacity: 0.85,
+        wireframe: funcData.style === 'dashed' || funcData.style === 'dotted'
+    });
+    if (funcData.style === 'dotted') material.opacity = 0.6;
+    return new THREE.Mesh(geometry, material);
+}
+
+/** 3D 隐式曲面（点云） */
+function build3DImplicit(funcData, paramNames, paramValues) {
+    const eqIdx = funcData.expr.indexOf('=');
+    const lhs = funcData.expr.substring(0, eqIdx).trim();
+    const rhs = funcData.expr.substring(eqIdx + 1).trim();
+    if (!lhs || !rhs) return null;
+
+    let fL, fR;
+    try {
+        fL = compileMathExpr(lhs, ['x', 'y', 'z'], paramNames);
+        fR = compileMathExpr(rhs, ['x', 'y', 'z'], paramNames);
+    } catch (e) { return null; }
+
+    const f = (x, y, z) => {
+        try { return fL(x, y, z, ...paramValues, Math) - fR(x, y, z, ...paramValues, Math); }
+        catch (e) { return NaN; }
+    };
+
+    const r = AXIS_RANGE;
+    const nx = IMPLICIT_RES, ny = IMPLICIT_RES, nz = IMPLICIT_RES;
+    const dx = (2 * r) / nx, dy = (2 * r) / ny, dz = (2 * r) / nz;
+    const values = new Float32Array((nx + 1) * (ny + 1) * (nz + 1));
+    const idx = (i, j, k) => i + (nx + 1) * (j + (ny + 1) * k);
+    for (let k = 0; k <= nz; k++)
+        for (let j = 0; j <= ny; j++)
+            for (let i = 0; i <= nx; i++) {
+                const x = -r + i * dx, y = -r + j * dy, z = -r + k * dz;
+                let v = f(x, y, z);
+                values[idx(i, j, k)] = isFinite(v) ? v : 0;
+            }
+
+    const positions = [];
+    for (let k = 0; k <= nz; k++)
+        for (let j = 0; j <= ny; j++)
+            for (let i = 0; i < nx; i++) {
+                const v1 = values[idx(i, j, k)], v2 = values[idx(i + 1, j, k)];
+                if (v1 * v2 < 0) {
+                    const t = v1 / (v1 - v2);
+                    positions.push(-r + (i + t) * dx, -r + j * dy, -r + k * dz);
+                }
+            }
+    for (let k = 0; k <= nz; k++)
+        for (let i = 0; i <= nx; i++)
+            for (let j = 0; j < ny; j++) {
+                const v1 = values[idx(i, j, k)], v2 = values[idx(i, j + 1, k)];
+                if (v1 * v2 < 0) {
+                    const t = v1 / (v1 - v2);
+                    positions.push(-r + i * dx, -r + (j + t) * dy, -r + k * dz);
+                }
+            }
+    for (let j = 0; j <= ny; j++)
+        for (let i = 0; i <= nx; i++)
+            for (let k = 0; k < nz; k++) {
+                const v1 = values[idx(i, j, k)], v2 = values[idx(i, j, k + 1)];
+                if (v1 * v2 < 0) {
+                    const t = v1 / (v1 - v2);
+                    positions.push(-r + i * dx, -r + j * dy, -r + (k + t) * dz);
+                }
+            }
+    if (positions.length === 0) return null;
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const pointSize = (2 * r) / IMPLICIT_RES * 0.6;
+    return new THREE.Points(geometry, new THREE.PointsMaterial({
+        color: new THREE.Color(funcData.color), size: pointSize,
+        sizeAttenuation: true, transparent: true, opacity: 0.9
+    }));
+}
+
+// ==================== Space 类 ====================
+let spaceCounter = 0;
+const palette = ['#ffaa00', '#33ccff', '#ff66aa', '#66ff99', '#cc66ff', '#ff6666', '#66ccff', '#ffff66'];
+const RESERVED_VARS = ['x', 'y', 'z'];
+
+class Space {
+    constructor(name) {
+        this.id = 'space-' + (++spaceCounter);
+        this.name = name;
+        this.mode = '2d';
+
+        // 参数
+        this.params = [
+            { name: 'a', value: 1, min: -5, max: 5, step: 0.1 },
+            { name: 'b', value: 1, min: -5, max: 5, step: 0.1 },
+            { name: 'c', value: 0, min: -5, max: 5, step: 0.1 }
+        ];
+
+        this.functions = [
+            { expr: 'a*sin(b*x)', color: palette[0], width: 2, style: 'solid' },
+            { expr: 'a*cos(b*x)', color: palette[1], width: 2, style: 'solid' }
+        ];
+        this.plottedObjects = [];
+        this._plotScheduled = false;
+
+        // DOM 容器
+        this.container = document.createElement('div');
+        this.container.className = 'space-container';
+        this.container.dataset.spaceId = this.id;
+
+        // WebGL 渲染器
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.container.appendChild(this.renderer.domElement);
+
+        // CSS2D 标签渲染器
+        this.labelRenderer = new CSS2DRenderer();
+        this.labelRenderer.domElement.style.position = 'absolute';
+        this.labelRenderer.domElement.style.top = '0';
+        this.labelRenderer.domElement.style.left = '0';
+        this.labelRenderer.domElement.style.pointerEvents = 'none';
+        this.container.appendChild(this.labelRenderer.domElement);
+
+        // 场景 & 相机
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x111122);
+        this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
+        this.camera.position.set(10, 10, 22);
+
+        // 控件
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.target.set(0, 0, 0);
+        this.controls.maxDistance = 80;
+        this.controls.minDistance = 3;
+
+        // 灯光
+        this.scene.add(new THREE.AmbientLight(0x404060));
+        const dl1 = new THREE.DirectionalLight(0xffffff, 1);
+        dl1.position.set(1, 2, 1);
+        this.scene.add(dl1);
+        const dl2 = new THREE.DirectionalLight(0xffaa88, 0.8);
+        dl2.position.set(-1, 1, -1);
+        this.scene.add(dl2);
+
+        // 星空
+        const starsGeo = new THREE.BufferGeometry();
+        const count = 1000;
+        const pos = new Float32Array(count * 3);
+        for (let i = 0; i < count * 3; i += 3) {
+            pos[i] = (Math.random() - 0.5) * 400;
+            pos[i + 1] = (Math.random() - 0.5) * 400;
+            pos[i + 2] = (Math.random() - 0.5) * 400;
+        }
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        this.stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.2, transparent: true }));
+        this.scene.add(this.stars);
+
+        this.axesGroup = new THREE.Group();
+        this.gridGroup = new THREE.Group();
+        this.scene.add(this.axesGroup);
+        this.scene.add(this.gridGroup);
+
+        this.buildPanel();
+    }
+
+    buildPanel() {
+        this.panel = document.createElement('div');
+        this.panel.className = 'space-panel';
+        this.panel.innerHTML = `
+            <div class="panel-header">
+                <span class="panel-name"></span>
+                <div class="panel-actions">
+                    <div class="mode-toggle-small">
+                        <button data-mode="2d" class="active">2D</button>
+                        <button data-mode="3d">3D</button>
+                    </div>
+                    <button class="icon-btn panel-collapse" title="折叠/展开">−</button>
+                    <button class="icon-btn danger panel-remove" title="删除空间">✕</button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="panel-hint">
+                    💡 显式 <code>a*sin(b*x)</code> · 隐式 <code>x^2+y^2=25</code> · 拖动滑块实时调参
+                </div>
+                <div class="function-list"></div>
+                <div class="params-section">
+                    <div class="params-header">
+                        <span>🎚 参数滑块</span>
+                        <span class="hint-mini">点击 + 添加</span>
+                    </div>
+                    <div class="params-list"></div>
+                </div>
+                <div class="panel-buttons">
+                    <button class="panel-btn add">+ 添加函数</button>
+                    <button class="panel-btn plot">绘制</button>
+                </div>
+            </div>
+        `;
+        this.panel.querySelector('.panel-name').textContent = this.name;
+        this.functionListEl = this.panel.querySelector('.function-list');
+        this.paramsListEl = this.panel.querySelector('.params-list');
+        this.container.appendChild(this.panel);
+
+        // 折叠
+        this.panel.querySelector('.panel-collapse').addEventListener('click', () => {
+            this.panel.classList.toggle('collapsed');
+        });
+
+        // 删除
+        this.panel.querySelector('.panel-remove').addEventListener('click', () => {
+            if (state.spaces.length <= 1) { alert('至少需要保留一个空间'); return; }
+            removeSpace(this);
+        });
+
+        // 模式
+        this.panel.querySelectorAll('.mode-toggle-small button').forEach(btn => {
+            btn.addEventListener('click', () => this.setMode(btn.dataset.mode));
+        });
+
+        // 添加函数
+        this.panel.querySelector('.panel-btn.add').addEventListener('click', () => this.addFunction());
+        // 绘制
+        this.panel.querySelector('.panel-btn.plot').addEventListener('click', () => this.plot());
+
+        this.renderFunctionList();
+        this.renderParams();
+    }
+
+    setMode(mode) {
+        if (this.mode === mode) return;
+        this.mode = mode;
+        this.panel.querySelectorAll('.mode-toggle-small button').forEach(b => {
+            b.classList.toggle('active', b.dataset.mode === mode);
+        });
+        if (mode === '2d') {
+            this.camera.position.set(0, 0, 30);
+        } else {
+            this.camera.position.set(18, 18, 28);
+        }
+        this.camera.lookAt(0, 0, 0);
+        this.controls.target.set(0, 0, 0);
+        this.controls.update();
+        this.plot();
+    }
+
+    addFunction() {
+        const defaultExpr = this.mode === '2d' ? 'a*sin(b*x+c)' : 'a*sin(b*x)*cos(b*y)';
+        const randomColor = palette[this.functions.length % palette.length];
+        this.functions.push({ expr: defaultExpr, color: randomColor, width: 2, style: 'solid' });
+        this.renderFunctionList();
+        this.plot();
+    }
+
+    removeFunction(func) {
+        const idx = this.functions.indexOf(func);
+        if (idx > -1) this.functions.splice(idx, 1);
+        this.renderFunctionList();
+        this.plot();
+    }
+
+    renderFunctionList() {
+        const el = this.functionListEl;
+        el.innerHTML = '';
+        this.functions.forEach(func => {
+            const item = document.createElement('div');
+            item.className = 'func-item';
+            item.style.borderLeftColor = func.color;
+
+            const header = document.createElement('div');
+            header.className = 'func-item-header';
+
+            const exprInput = document.createElement('input');
+            exprInput.type = 'text';
+            exprInput.className = 'func-expr';
+            exprInput.value = func.expr;
+            exprInput.placeholder = this.mode === '2d'
+                ? '如 a*sin(b*x) 或 x^2+y^2=25'
+                : '如 a*sin(b*x)*cos(b*y) 或 x^2+y^2+z^2=100';
+            exprInput.addEventListener('input', (e) => {
+                func.expr = e.target.value;
+            });
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'icon-btn danger';
+            removeBtn.textContent = '✕';
+            removeBtn.title = '删除此函数';
+            removeBtn.addEventListener('click', () => this.removeFunction(func));
+
+            header.appendChild(exprInput);
+            header.appendChild(removeBtn);
+            item.appendChild(header);
+
+            const ctrl = document.createElement('div');
+            ctrl.className = 'func-controls';
+
+            const colorInput = document.createElement('input');
+            colorInput.type = 'color';
+            colorInput.className = 'color-picker';
+            colorInput.value = func.color;
+            colorInput.title = '颜色';
+            colorInput.addEventListener('input', (e) => {
+                func.color = e.target.value;
+                item.style.borderLeftColor = func.color;
+                this.requestPlot();
+            });
+
+            const widthSlider = document.createElement('input');
+            widthSlider.type = 'range';
+            widthSlider.className = 'width-slider';
+            widthSlider.min = '1';
+            widthSlider.max = '8';
+            widthSlider.step = '0.5';
+            widthSlider.value = func.width;
+            widthSlider.title = '粗细';
+            widthSlider.addEventListener('input', (e) => {
+                func.width = parseFloat(e.target.value);
+                this.requestPlot();
+            });
+
+            const styleSelect = document.createElement('select');
+            styleSelect.className = 'style-select';
+            styleSelect.title = '线型';
+            [
+                { v: 'solid', l: '实线' },
+                { v: 'dashed', l: '虚线' },
+                { v: 'dotted', l: '点线' }
+            ].forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.v;
+                opt.textContent = s.l;
+                if (func.style === s.v) opt.selected = true;
+                styleSelect.appendChild(opt);
+            });
+            styleSelect.addEventListener('change', (e) => {
+                func.style = e.target.value;
+                this.requestPlot();
+            });
+
+            ctrl.appendChild(colorInput);
+            ctrl.appendChild(widthSlider);
+            ctrl.appendChild(styleSelect);
+            item.appendChild(ctrl);
+
+            el.appendChild(item);
+        });
+    }
+
+    renderParams() {
+        const el = this.paramsListEl;
+        el.innerHTML = '';
+
+        // 添加按钮
+        const header = this.panel.querySelector('.params-header');
+        // 移除旧的事件监听器：先重置
+        const newHeader = header.cloneNode(true);
+        header.parentNode.replaceChild(newHeader, header);
+        newHeader.querySelector('.param-add-btn')?.remove();
+
+        // 添加按钮
+        const addBtn = document.createElement('button');
+        addBtn.className = 'param-add-btn';
+        addBtn.textContent = '+';
+        addBtn.title = '添加参数';
+        addBtn.addEventListener('click', () => this.addParam());
+        newHeader.appendChild(addBtn);
+
+        this.params.forEach(param => {
+            const row = document.createElement('div');
+            row.className = 'param-row';
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'param-name';
+            nameEl.textContent = param.name;
+            nameEl.title = '参数名';
+            // 点击名称可重命名
+            nameEl.addEventListener('click', () => {
+                const newName = prompt('重命名参数 (单个小写字母):', param.name);
+                if (newName && /^[a-wA-W]$/.test(newName.trim()) &&
+                    !RESERVED_VARS.includes(newName.trim()) &&
+                    !this.params.some(p => p !== param && p.name === newName.trim())) {
+                    param.name = newName.trim();
+                    this.renderParams();
+                    this.plot();
+                } else if (newName) {
+                    alert('参数名无效或已存在。请使用 a-w 中未被占用的单个字母。');
+                }
+            });
+
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.className = 'param-slider';
+            slider.min = param.min;
+            slider.max = param.max;
+            slider.step = param.step;
+            slider.value = param.value;
+
+            const valueEl = document.createElement('input');
+            valueEl.type = 'number';
+            valueEl.className = 'param-value';
+            valueEl.value = param.value.toFixed(2);
+            valueEl.step = param.step;
+
+            slider.addEventListener('input', (e) => {
+                param.value = parseFloat(e.target.value);
+                valueEl.value = param.value.toFixed(2);
+                this.requestPlot();
+            });
+
+            valueEl.addEventListener('change', (e) => {
+                let v = parseFloat(e.target.value);
+                if (isNaN(v)) { valueEl.value = param.value.toFixed(2); return; }
+                param.value = v;
+                if (v < param.min) { param.min = Math.floor(v * 10) / 10; slider.min = param.min; }
+                if (v > param.max) { param.max = Math.ceil(v * 10) / 10; slider.max = param.max; }
+                slider.value = v;
+                valueEl.value = v.toFixed(2);
+                this.requestPlot();
+            });
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'param-del';
+            delBtn.textContent = '×';
+            delBtn.title = '删除参数';
+            delBtn.addEventListener('click', () => {
+                const idx = this.params.indexOf(param);
+                if (idx > -1) this.params.splice(idx, 1);
+                this.renderParams();
+                this.plot();
+            });
+
+            row.appendChild(nameEl);
+            row.appendChild(slider);
+            row.appendChild(valueEl);
+            row.appendChild(delBtn);
+            el.appendChild(row);
+        });
+    }
+
+    addParam() {
+        const used = new Set(this.params.map(p => p.name));
+        const letters = 'abcdefghijklmnopqrstuvw'.split(''); // 排除 x,y,z
+        let next = null;
+        for (const l of letters) {
+            if (!used.has(l) && !RESERVED_VARS.includes(l)) { next = l; break; }
+        }
+        if (!next) { alert('没有可用的参数名了'); return; }
+        this.params.push({ name: next, value: 1, min: -5, max: 5, step: 0.1 });
+        this.renderParams();
+        this.plot();
+    }
+
+    /** 请求重绘（使用 rAF 节流） */
+    requestPlot() {
+        if (this._plotScheduled) return;
+        this._plotScheduled = true;
+        requestAnimationFrame(() => {
+            this._plotScheduled = false;
+            this.plot();
+        });
+    }
+
+    clearPlots() {
+        this.plottedObjects.forEach(obj => {
+            this.scene.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) {
+                if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                else obj.material.dispose();
+            }
+        });
+        this.plottedObjects = [];
+        while (this.axesGroup.children.length > 0) {
+            const c = this.axesGroup.children[0];
+            this.axesGroup.remove(c);
+            if (c.geometry) c.geometry.dispose();
+            if (c.material) {
+                if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+                else c.material.dispose();
+            }
+        }
+        while (this.gridGroup.children.length > 0) {
+            const c = this.gridGroup.children[0];
+            this.gridGroup.remove(c);
+            if (c.geometry) c.geometry.dispose();
+            if (c.material) {
+                if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+                else c.material.dispose();
+            }
+        }
+    }
+
+    drawAxes() {
+        const axisLength = AXIS_RANGE;
+        const headLen = 0.6, headWid = 0.3;
+        this.axesGroup.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), axisLength, 0xff3333, headLen, headWid));
+        this.axesGroup.add(new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(), axisLength, 0x33ff33, headLen, headWid));
+        const zLen = this.mode === '3d' ? axisLength : axisLength * 0.75;
+        this.axesGroup.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(), zLen, 0x3388ff, headLen, headWid));
+
+        const makeLabel = (text, color, position, size = '18px') => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            div.style.color = color;
+            div.style.fontSize = size;
+            div.style.fontWeight = 'bold';
+            div.style.textShadow = '2px 2px 4px black';
+            const label = new CSS2DObject(div);
+            label.position.copy(position);
+            this.axesGroup.add(label);
+        };
+        makeLabel('X', '#ff5555', new THREE.Vector3(axisLength + 1.2, 0, 0));
+        makeLabel('Y', '#55ff55', new THREE.Vector3(0, axisLength + 1.2, 0));
+        makeLabel('Z', '#5588ff', new THREE.Vector3(0, 0, zLen + 1.2));
+
+        const originDiv = document.createElement('div');
+        originDiv.textContent = 'O';
+        originDiv.style.color = 'white';
+        originDiv.style.fontSize = '14px';
+        originDiv.style.fontWeight = 'bold';
+        originDiv.style.textShadow = '1px 1px 3px black';
+        const originLabel = new CSS2DObject(originDiv);
+        originLabel.position.set(-0.6, -0.6, 0);
+        this.axesGroup.add(originLabel);
+
+        const addTick = (text, pos, color) => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            div.style.color = color;
+            div.style.fontSize = '10px';
+            div.style.opacity = '0.7';
+            const label = new CSS2DObject(div);
+            label.position.copy(pos);
+            this.axesGroup.add(label);
+        };
+        for (let v = -12; v <= 12; v += 4) {
+            if (v === 0) continue;
+            addTick(v.toString(), new THREE.Vector3(v, -0.8, 0), '#ff8888');
+            addTick(v.toString(), new THREE.Vector3(-1.0, v, 0), '#88ff88');
+            if (this.mode === '3d') addTick(v.toString(), new THREE.Vector3(0, -0.8, v), '#8888ff');
+        }
+
+        const gridHelper = new THREE.GridHelper(GRID_SIZE, GRID_DIVISIONS, 0x88aaff, 0x4466aa);
+        gridHelper.rotation.x = Math.PI / 2;
+        this.gridGroup.add(gridHelper);
+
+        if (this.mode === '3d') {
+            const gxz = new THREE.GridHelper(GRID_SIZE, GRID_DIVISIONS, 0x88aaff, 0x4466aa);
+            gxz.material.opacity = 0.22;
+            gxz.material.transparent = true;
+            this.gridGroup.add(gxz);
+        }
+    }
+
+    plot() {
+        try {
+            this.clearPlots();
+            this.drawAxes();
+
+            const paramNames = this.params.map(p => p.name);
+            const paramValues = this.params.map(p => p.value);
+
+            this.functions.forEach(funcData => {
+                if (!funcData.expr || !funcData.expr.trim()) return;
+                const implicit = isImplicitEquation(funcData.expr);
+                let obj = null;
+                if (this.mode === '2d') {
+                    obj = implicit
+                        ? build2DImplicit(funcData, paramNames, paramValues)
+                        : build2DCurve(funcData, paramNames, paramValues);
+                } else {
+                    obj = implicit
+                        ? build3DImplicit(funcData, paramNames, paramValues)
+                        : build3DSurface(funcData, paramNames, paramValues);
+                }
+                if (obj) {
+                    this.scene.add(obj);
+                    this.plottedObjects.push(obj);
+                }
+            });
+        } catch (e) {
+            console.warn('绘制出错:', e);
+        }
+    }
+
+    render() {
+        this.controls.update();
+        this.stars.rotation.y += 0.00008;
+        this.renderer.render(this.scene, this.camera);
+        this.labelRenderer.render(this.scene, this.camera);
+    }
+
+    resize(w, h) {
+        this.camera.aspect = w / h;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(w, h);
+        this.labelRenderer.setSize(w, h);
+    }
+
+    dispose() {
+        this.clearPlots();
+        this.renderer.dispose();
+        this.container.remove();
+    }
+}
+
+// ==================== 全局状态 ====================
+const state = {
+    spaces: [],
+    activeIndex: 0,
+    layout: 'single'
+};
+
+const viewContainer = document.getElementById('view-container');
+const spaceTabsEl = document.getElementById('space-tabs');
+
+// ==================== 布局 ====================
+function getVisibleSpaces() {
+    if (state.layout === 'single') return [state.spaces[state.activeIndex]].filter(Boolean);
+    if (state.layout === 'split-h') return state.spaces.slice(0, 2);
+    if (state.layout === 'split-v') return state.spaces.slice(0, 2);
+    if (state.layout === 'quad') return state.spaces.slice(0, 4);
+    return state.spaces.slice(0, 1);
+}
+
+function updateLayout() {
+    const W = viewContainer.clientWidth;
+    const H = viewContainer.clientHeight;
+    const layout = state.layout;
+    const visible = getVisibleSpaces();
+
+    state.spaces.forEach(s => s.container.style.display = 'none');
+
+    const positions = [];
+    if (layout === 'single') {
+        positions.push({ x: 0, y: 0, w: W, h: H });
+    } else if (layout === 'split-h') {
+        positions.push({ x: 0, y: 0, w: Math.floor(W / 2), h: H });
+        positions.push({ x: Math.floor(W / 2), y: 0, w: Math.ceil(W / 2), h: H });
+    } else if (layout === 'split-v') {
+        positions.push({ x: 0, y: 0, w: W, h: Math.floor(H / 2) });
+        positions.push({ x: 0, y: Math.floor(H / 2), w: W, h: Math.ceil(H / 2) });
+    } else if (layout === 'quad') {
+        const hw = Math.floor(W / 2), hh = Math.floor(H / 2);
+        positions.push({ x: 0, y: 0, w: hw, h: hh });
+        positions.push({ x: hw, y: 0, w: W - hw, h: hh });
+        positions.push({ x: 0, y: hh, w: hw, h: H - hh });
+        positions.push({ x: hw, y: hh, w: W - hw, h: H - hh });
+    }
+
+    visible.forEach((space, i) => {
+        const p = positions[i];
+        if (!p) { space.container.style.display = 'none'; return; }
+        space.container.style.display = 'block';
+        space.container.style.left = p.x + 'px';
+        space.container.style.top = p.y + 'px';
+        space.container.style.width = p.w + 'px';
+        space.container.style.height = p.h + 'px';
+        space.container.classList.toggle('active-space', space === state.spaces[state.activeIndex]);
+        space.resize(p.w, p.h);
+    });
+
+    renderTabs();
+}
+
+function renderTabs() {
+    spaceTabsEl.innerHTML = '';
+    state.spaces.forEach((space, i) => {
+        const tab = document.createElement('div');
+        tab.className = 'space-tab' + (i === state.activeIndex ? ' active' : '');
+        tab.innerHTML = `<span class="tab-dot"></span><span>${space.name}</span>`;
+        tab.addEventListener('click', () => {
+            state.activeIndex = i;
+            if (state.layout === 'single') updateLayout();
+            else renderTabs();
+        });
+        spaceTabsEl.appendChild(tab);
+    });
+}
+
+// ==================== 空间管理 ====================
+function addSpace() {
+    const name = '空间 ' + (state.spaces.length + 1);
+    const space = new Space(name);
+    state.spaces.push(space);
+    viewContainer.appendChild(space.container);
+    state.activeIndex = state.spaces.length - 1;
+    updateLayout();
+    setTimeout(() => {
+        space.plot();
+        space.resize(space.container.clientWidth, space.container.clientHeight);
+    }, 30);
+}
+
+function removeSpace(space) {
+    const idx = state.spaces.indexOf(space);
+    if (idx < 0) return;
+    state.spaces.splice(idx, 1);
+    space.dispose();
+    if (state.activeIndex >= state.spaces.length) state.activeIndex = state.spaces.length - 1;
+    updateLayout();
+}
+
+// ==================== 事件 ====================
+document.getElementById('add-space-btn').addEventListener('click', addSpace);
+document.querySelectorAll('#layout-controls button').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#layout-controls button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.layout = btn.dataset.layout;
+        updateLayout();
+    });
+});
+window.addEventListener('resize', updateLayout);
+
+// ==================== 虚拟数学键盘 ====================
+const keyboard = document.getElementById('math-keyboard');
+let activeInput = null;
+
+document.addEventListener('focusin', (e) => {
+    if (e.target.classList.contains('func-expr')) {
+        activeInput = e.target;
+        keyboard.classList.add('visible');
+    }
+});
+
+document.addEventListener('focusout', (e) => {
+    if (e.target.classList.contains('func-expr')) {
+        setTimeout(() => {
+            if (!document.querySelector('.func-expr:focus')) {
+                keyboard.classList.remove('visible');
+            }
+        }, 200);
+    }
+});
+
+keyboard.addEventListener('mousedown', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn || !activeInput) return;
+    e.preventDefault();
+
+    const insertText = btn.dataset.insert;
+    const action = btn.dataset.action;
+    const start = activeInput.selectionStart ?? activeInput.value.length;
+    const end = activeInput.selectionEnd ?? activeInput.value.length;
+    const value = activeInput.value;
+
+    if (action === 'backspace') {
+        if (start !== end) {
+            activeInput.value = value.substring(0, start) + value.substring(end);
+            activeInput.selectionStart = activeInput.selectionEnd = start;
+        } else if (start > 0) {
+            activeInput.value = value.substring(0, start - 1) + value.substring(start);
+            activeInput.selectionStart = activeInput.selectionEnd = start - 1;
+        }
+    } else if (action === 'clear') {
+        activeInput.value = '';
+        activeInput.selectionStart = activeInput.selectionEnd = 0;
+    } else if (insertText !== undefined) {
+        activeInput.value = value.substring(0, start) + insertText + value.substring(end);
+        activeInput.selectionStart = activeInput.selectionEnd = start + insertText.length;
+    }
+
+    activeInput.focus();
+    activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+// Enter 触发绘制
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.classList.contains('func-expr')) {
+        const spaceContainer = e.target.closest('.space-container');
+        if (spaceContainer) {
+            const space = state.spaces.find(s => s.container === spaceContainer);
+            if (space) { e.target.blur(); space.plot(); }
+        }
+    }
+});
+
+// ==================== 动画 ====================
+function animate() {
+    requestAnimationFrame(animate);
+    const visible = getVisibleSpaces();
+    visible.forEach(space => space.render());
+}
+
+// ==================== 启动 ====================
+const initialSpace = new Space('空间 1');
+state.spaces.push(initialSpace);
+viewContainer.appendChild(initialSpace.container);
+
+setTimeout(() => {
+    updateLayout();
+    initialSpace.plot();
+    animate();
+}, 60);
+
+console.log('✅ 多空间可视化已启动（含参数滑块）');
+</script>
+</body>
+</html>
